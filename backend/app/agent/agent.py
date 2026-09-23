@@ -22,6 +22,8 @@ from logger import log_event
 
 load_dotenv()
 
+print("DATABASE_URL in use:", os.environ.get("DATABASE_URL"))
+
 SYSTEM_PROMPT = (
     "You are a helpful assistant with access to a calculator and a file "
     "reader tool. Use tools when they are needed to answer the user's "
