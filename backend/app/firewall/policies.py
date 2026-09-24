@@ -24,7 +24,7 @@ EMAIL_WHITELIST = {
 }
 
 # Tools that are always allowed with no restriction.
-ALWAYS_ALLOWED_TOOLS = {"calculator", "file_reader", "web_search"}
+ALWAYS_ALLOWED_TOOLS = {"calculator", "file_reader", "web_search","fetch_webpage"}
 
 # Tools that require a policy check before execution.
 RESTRICTED_TOOLS = {"database_query", "send_email"}
