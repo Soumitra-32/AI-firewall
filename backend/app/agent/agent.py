@@ -1,23 +1,28 @@
 """
 Stage 1 agent: a minimal LangGraph ReAct-style agent, provider-agnostic
-between Groq (free tier, default) and OpenAI (paid, optional),
-using the tools in tools.py, with every step logged via logger.py.
+across Groq, OpenAI, Gemini, and OpenRouter.
 
 Run this file directly to chat with the agent from the terminal:
     python agent.py
 
 Design notes for later stages:
-- Tool calls are not gatekept yet — intentional, this is our "no firewall"
-  baseline (see Stage 5).
+- Tool calls are not gatekept by default — build_agent(use_firewall=True)
+  routes tool execution through the firewall (see tools.py /
+  firewall/firewall.py).
 - LLM provider is chosen at build time via LLM_PROVIDER env var, so
   switching providers later is a config change, not a rewrite.
+- build_llm/build_agent accept an optional model_override so the attack
+  runner (Stage 4/5) can test multiple models without touching .env.
 """
 
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from dotenv import load_dotenv
 from langgraph.prebuilt import create_react_agent
 
-from tools import TOOLS
+from tools import TOOLS, FIREWALLED_TOOLS
 from logger import log_event
 
 load_dotenv()
@@ -25,20 +30,20 @@ load_dotenv()
 print("DATABASE_URL in use:", os.environ.get("DATABASE_URL"))
 
 SYSTEM_PROMPT = (
-    "You are a helpful assistant with access to a calculator and a file "
-    "reader tool. Use tools when they are needed to answer the user's "
-    "question accurately. Only use the tools provided; do not invent "
-    "information."
+    "You are a helpful assistant with access to these tools: calculator, "
+    "file_reader, web_search, database_query, and send_email. Use tools "
+    "when needed to answer the user's question accurately. Only use the "
+    "tools provided; do not invent information."
 )
 
 
-def build_llm():
+def build_llm(model_override: str = None):
     provider = os.environ.get("LLM_PROVIDER", "groq").lower()
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
-            model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+            model=model_override or os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
             api_key=os.environ.get("OPENAI_API_KEY"),
             temperature=0,
         )
@@ -46,17 +51,35 @@ def build_llm():
     if provider == "groq":
         from langchain_groq import ChatGroq
         return ChatGroq(
-            model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            model=model_override or os.environ["GROQ_MODEL"],
             api_key=os.environ.get("GROQ_API_KEY"),
+            temperature=0,
+        )
+
+    if provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(
+            model=model_override or os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
+            google_api_key=os.environ.get("GEMINI_API_KEY"),
+            temperature=0,
+        )
+
+    if provider == "openrouter":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=model_override or os.environ.get("OPENROUTER_MODEL", "liquid/lfm-2.5-2.6b:free"),
+            api_key=os.environ.get("OPENROUTER_API_KEY"),
+            base_url="https://openrouter.ai/api/v1",
             temperature=0,
         )
 
     raise ValueError(f"Unknown LLM_PROVIDER: {provider}")
 
 
-def build_agent():
-    llm = build_llm()
-    agent = create_react_agent(llm, TOOLS, prompt=SYSTEM_PROMPT)
+def build_agent(model_override: str = None, use_firewall: bool = False):
+    llm = build_llm(model_override)
+    tools = FIREWALLED_TOOLS if use_firewall else TOOLS
+    agent = create_react_agent(llm, tools, prompt=SYSTEM_PROMPT)
     return agent
 
 

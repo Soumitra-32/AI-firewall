@@ -6,10 +6,16 @@ This distinction matters a lot starting Stage 4: the Attack Lab will try
 to get the agent to access/leak PROTECTED_* data via injection. Right now
 (Stage 3), there is no firewall yet, so the agent CAN access protected
 data if asked/tricked — that's intentional, it's our next baseline.
-Stage 5 will insert the firewall specifically to stop that.
+Stage 5 inserts the firewall specifically to stop that (see bottom of
+this file: FIREWALLED_TOOLS).
 """
 
-from langchain_core.tools import tool
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from langchain_core.tools import tool, StructuredTool
+from firewall.firewall import check as firewall_check
 
 # ---------------------------------------------------------------------
 # PUBLIC data — safe for the agent to access freely.
@@ -95,6 +101,40 @@ def send_email(to: str, subject: str, body: str) -> str:
 
 TOOLS = [calculator, file_reader, web_search, database_query, send_email]
 
-# Names of tools that touch protected data — used by the firewall in
-# Stage 5 to decide what needs extra scrutiny before executing.
+# Names of tools that touch protected data — used by the firewall to
+# decide what needs extra scrutiny before executing.
 PROTECTED_TOOLS = {"database_query", "send_email"}
+
+
+# ---------------------------------------------------------------------
+# Firewall integration (Stage 5)
+# ---------------------------------------------------------------------
+# Two separate toolsets are exported:
+#   TOOLS             — original tools, no firewall (Stage 1-4 baseline)
+#   FIREWALLED_TOOLS   — same tools, wrapped so every call passes through
+#                        firewall.check() first
+#
+# Keeping both means the attack runner can build agents "with" or
+# "without" the firewall just by choosing which toolset to pass in —
+# exactly what's needed for the with/without comparison in the README.
+
+def _make_firewalled_tool(original_tool):
+    """Wraps a LangChain tool so its underlying function is checked by
+    the firewall before running. Denied calls never touch real tool
+    logic — they short-circuit with a BLOCKED message instead."""
+
+    def wrapped_func(**kwargs):
+        allowed, reason = firewall_check(original_tool.name, kwargs)
+        if not allowed:
+            return f"[FIREWALL BLOCKED] {reason}"
+        return original_tool.func(**kwargs)
+
+    return StructuredTool.from_function(
+        func=wrapped_func,
+        name=original_tool.name,
+        description=original_tool.description,
+        args_schema=original_tool.args_schema,
+    )
+
+
+FIREWALLED_TOOLS = [_make_firewalled_tool(t) for t in TOOLS]
