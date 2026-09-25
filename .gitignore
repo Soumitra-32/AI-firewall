@@ -1,3 +1,11 @@
+# Environment & Secrets
 .env
-\node_modules
-\venv
+
+# Dependencies & Environments
+node_modules/
+venv/
+
+# Python Compiled Files & Caches
+__pycache__/
+*.py[cod]
+*$py.class

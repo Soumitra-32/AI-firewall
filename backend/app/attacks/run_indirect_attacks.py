@@ -16,7 +16,7 @@ from attacks.indirect import INDIRECT_ATTACKS
 from evaluation.evaluator import run_attack_trials, save_attack_result
 
 #MODEL = "openai/gpt-oss-20b"         # None = use whatever LLM_PROVIDER/model .env points at
-MODEL = "liquid/lfm-2.5-2.6b:free"
+MODEL = None
 N_TRIALS = 1         # keep low to respect free-tier rate limits
 
 if __name__ == "__main__":

@@ -17,7 +17,8 @@ from agent.agent import build_agent, SYSTEM_PROMPT
 from attacks.system_prompt import SYSTEM_PROMPT_ATTACKS
 from evaluation.evaluator import run_system_prompt_attack, save_attack_result
 
-MODEL = "openai/gpt-oss-20b"      # None = use whatever LLM_PROVIDER/model .env points at
+#MODEL = "openai/gpt-oss-20b"      # None = use whatever LLM_PROVIDER/model .env points at
+MODEL = None
 N_TRIALS = 1
 
 if __name__ == "__main__":

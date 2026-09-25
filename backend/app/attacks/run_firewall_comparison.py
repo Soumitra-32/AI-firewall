@@ -17,7 +17,7 @@ from attacks.direct import DIRECT_ATTACKS
 from evaluation.evaluator import run_attack_trials, save_attack_result
 
 #MODEL = "openai/gpt-oss-20b"
-MODEL = "liquid/lfm-2.5-2.6b:free"
+MODEL = None
 N_TRIALS = 1
 
 if __name__ == "__main__":
